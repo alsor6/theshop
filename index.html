@@ -258,18 +258,30 @@ function switchTab(t){
 // ============================================================
 function geocodeAddr(addr) {
   return new Promise((resolve, reject) => {
-    // 캐시 확인
     if (geoCache[addr]) { resolve(geoCache[addr]); return; }
 
+    // 1차: 괄호 안 동 정보까지만 추출
+    const match = addr.match(/^(.+?\(.+?\))/);
+    const cleanAddr = match ? match[1] : addr.split(')')[0] + ')';
+
     const geocoder = new kakao.maps.services.Geocoder();
-    geocoder.addressSearch(addr, function(result, status) {
+    geocoder.addressSearch(cleanAddr, function(result, status) {
       if (status === kakao.maps.services.Status.OK && result.length > 0) {
         const coord = { lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) };
         geoCache[addr] = coord;
         resolve(coord);
       } else {
-        // 주소 검색 실패 시 구군 중심 좌표 + 랜덤 오프셋 사용
-        reject(addr);
+        // 2차: 키워드 검색으로 재시도 (장소명 검색)
+        const places = new kakao.maps.services.Places();
+        places.keywordSearch(addr, function(result2, status2) {
+          if (status2 === kakao.maps.services.Status.OK && result2.length > 0) {
+            const coord = { lat: parseFloat(result2[0].y), lng: parseFloat(result2[0].x) };
+            geoCache[addr] = coord;
+            resolve(coord);
+          } else {
+            reject(addr);
+          }
+        });
       }
     });
   });
