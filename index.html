@@ -305,40 +305,54 @@ async function drawRealRoute(map, points, color) {
   }
 
   try {
-    const origin = points[0];
-    const destination = points[points.length - 1];
-    const waypoints = points.slice(1, -1);
+    // 5개씩 끊어서 호출 (카카오 경유지 최대 5개 제한)
+    const MAX_WP = 5;
+    const allRoutePaths = [];
+    let totalDistance = 0;
+    let totalDuration = 0;
 
-    let url = `https://apis-navi.kakaomobility.com/v1/directions?origin=${origin.lng},${origin.lat}&destination=${destination.lng},${destination.lat}&priority=RECOMMEND`;
+    for (let i = 0; i < points.length - 1; i += MAX_WP) {
+      const chunk = points.slice(i, Math.min(i + MAX_WP + 1, points.length));
+      if (chunk.length < 2) break;
 
-    if (waypoints.length > 0) {
-      const wpStr = waypoints.map(w => `${w.lng},${w.lat}`).join('|');
-      url += `&waypoints=${wpStr}`;
-    }
+      const origin = chunk[0];
+      const destination = chunk[chunk.length - 1];
+      const waypoints = chunk.slice(1, -1);
 
-    const resp = await fetch(url, {
-      headers: { 'Authorization': `KakaoAK ${KAKAO_REST_KEY}` }
-    });
+      let url = `https://apis-navi.kakaomobility.com/v1/directions?origin=${origin.lng},${origin.lat}&destination=${destination.lng},${destination.lat}&priority=RECOMMEND`;
 
-    if (!resp.ok) throw new Error('API error: ' + resp.status);
-    const data = await resp.json();
+      if (waypoints.length > 0) {
+        const wpStr = waypoints.map(w => `${w.lng},${w.lat}`).join('|');
+        url += `&waypoints=${wpStr}`;
+      }
 
-    // 경로 좌표 추출
-    const routePath = [];
-    if (data.routes && data.routes[0] && data.routes[0].sections) {
-      data.routes[0].sections.forEach(section => {
-        section.roads.forEach(road => {
-          for (let i = 0; i < road.vertexes.length; i += 2) {
-            routePath.push(new kakao.maps.LatLng(road.vertexes[i + 1], road.vertexes[i]));
-          }
-        });
+      const resp = await fetch(url, {
+        headers: { 'Authorization': `KakaoAK ${KAKAO_REST_KEY}` }
       });
+
+      if (!resp.ok) throw new Error('API error: ' + resp.status);
+      const data = await resp.json();
+
+      if (data.routes && data.routes[0] && data.routes[0].sections) {
+        data.routes[0].sections.forEach(section => {
+          section.roads.forEach(road => {
+            for (let j = 0; j < road.vertexes.length; j += 2) {
+              allRoutePaths.push(new kakao.maps.LatLng(road.vertexes[j + 1], road.vertexes[j]));
+            }
+          });
+        });
+        totalDistance += data.routes[0].summary.distance;
+        totalDuration += data.routes[0].summary.duration;
+      }
+
+      // API 호출 간격
+      await new Promise(r => setTimeout(r, 200));
     }
 
-    if (routePath.length === 0) throw new Error('No route');
+    if (allRoutePaths.length === 0) throw new Error('No route');
 
     const polyline = new kakao.maps.Polyline({
-      path: routePath,
+      path: allRoutePaths,
       strokeWeight: 4,
       strokeColor: color,
       strokeOpacity: 0.8,
@@ -346,13 +360,7 @@ async function drawRealRoute(map, points, color) {
     });
     polyline.setMap(map);
 
-    // 총 거리/시간 반환
-    const route = data.routes[0].summary;
-    return {
-      polyline,
-      distance: route.distance, // meters
-      duration: route.duration  // seconds
-    };
+    return { polyline, distance: totalDistance, duration: totalDuration };
   } catch (e) {
     console.warn('실제 경로 실패, 직선 표시:', e);
     return drawStraightRoute(map, points, color);
