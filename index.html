@@ -167,7 +167,7 @@ button:hover{background:#F3F4F6;}
   ★ 카카오 API 키 설정 ★
   배포 시: 아래 주석의 안내에 따라 키를 입력하세요
 -->
-<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_JAVASCRIPT_KEY&libraries=services&autoload=false"></script>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=fb2c10e7439886ef28c2b8c01846db88&libraries=services&autoload=false"></script>
 
 <script>
 // ============================================================
@@ -297,7 +297,7 @@ function drawStraightRoute(map, points, color) {
 
 // 카카오 Mobility API로 실제 도로 경로 그리기
 // ★ REST API 키를 아래 KAKAO_REST_KEY에 넣으면 자동으로 실제 경로가 표시됩니다
-const KAKAO_REST_KEY = 'YOUR_REST_API_KEY'; // ← 여기에 REST API 키 입력
+const KAKAO_REST_KEY = 'f965d631567988e2ccfaed58355d7465'; // ← 여기에 REST API 키 입력
 
 async function drawRealRoute(map, points, color) {
   if (!KAKAO_REST_KEY || points.length < 2) {
